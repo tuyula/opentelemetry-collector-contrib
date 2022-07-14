@@ -16,6 +16,7 @@ package kafkaexporter // import "github.com/open-telemetry/opentelemetry-collect
 
 import (
 	"github.com/Shopify/sarama"
+	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/plog"
 	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.opentelemetry.io/collector/pdata/ptrace"
@@ -85,20 +86,63 @@ type pdataTracesMarshaler struct {
 }
 
 func (p pdataTracesMarshaler) Marshal(td ptrace.Traces, topic string) ([]*sarama.ProducerMessage, error) {
-	bts, err := p.marshaler.MarshalTraces(td)
-	if err != nil {
-		return nil, err
+	idToTrace := p.groupResourceSpansByTraceKey(td)
+	var producerMessages []*sarama.ProducerMessage
+
+	for traceId, traceSlices := range idToTrace {
+		traceId16Bytes := traceId.Bytes()
+		traceIdBytes := traceId16Bytes[:]
+		for _, trace := range traceSlices {
+			bts, err := p.marshaler.MarshalTraces(trace)
+			if err != nil {
+				return nil, err
+			}
+			producerMessages = append(producerMessages,
+				&sarama.ProducerMessage{
+					Topic: topic,
+					Key:   sarama.ByteEncoder(traceIdBytes),
+					Value: sarama.ByteEncoder(bts),
+				})
+		}
 	}
-	return []*sarama.ProducerMessage{
-		{
-			Topic: topic,
-			Value: sarama.ByteEncoder(bts),
-		},
-	}, nil
+
+	return producerMessages, nil
 }
 
 func (p pdataTracesMarshaler) Encoding() string {
 	return p.encoding
+}
+
+func (p *pdataTracesMarshaler) groupResourceSpansByTraceKey(td ptrace.Traces) map[pcommon.TraceID][]ptrace.Traces {
+	idToTrace := make(map[pcommon.TraceID][]ptrace.Traces)
+	rsss := td.ResourceSpans()
+	for j := 0; j < rsss.Len(); j++ {
+		resourceSpans := rsss.At(j)
+		idToResourceSpans := p.groupSpansByTraceKey(resourceSpans)
+		for traceId, rs := range idToResourceSpans {
+			nTrace := ptrace.NewTraces()
+			nrs := nTrace.ResourceSpans().AppendEmpty()
+			rs.CopyTo(nrs)
+			idToTrace[traceId] = append(idToTrace[traceId], nTrace)
+		}
+	}
+	return idToTrace
+}
+
+func (p *pdataTracesMarshaler) groupSpansByTraceKey(resourceSpans ptrace.ResourceSpans) map[pcommon.TraceID]*ptrace.ResourceSpans {
+	idToResourceSpans := make(map[pcommon.TraceID]*ptrace.ResourceSpans)
+	ilss := resourceSpans.ScopeSpans()
+	for j := 0; j < ilss.Len(); j++ {
+		spans := ilss.At(j).Spans()
+		spansLen := spans.Len()
+		for k := 0; k < spansLen; k++ {
+			span := spans.At(k)
+			key := span.TraceID()
+			nSpan := idToResourceSpans[key].ScopeSpans().AppendEmpty().Spans().AppendEmpty()
+			span.MoveTo(nSpan)
+		}
+	}
+	return idToResourceSpans
 }
 
 func newPdataTracesMarshaler(marshaler ptrace.Marshaler, encoding string) TracesMarshaler {
