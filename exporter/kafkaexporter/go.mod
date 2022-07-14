@@ -1,4 +1,4 @@
-module github.com/open-telemetry/opentelemetry-collector-contrib/exporter/kafkaexporter
+module github.com/tuyula/opentelemetry-collector-contrib/exporter/kafkaexporter
 
 go 1.17
 
