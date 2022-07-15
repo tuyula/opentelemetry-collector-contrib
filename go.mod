@@ -28,7 +28,7 @@ require (
 	github.com/open-telemetry/opentelemetry-collector-contrib/exporter/influxdbexporter v0.55.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/exporter/jaegerexporter v0.55.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/exporter/jaegerthrifthttpexporter v0.55.0
-	github.com/open-telemetry/opentelemetry-collector-contrib/exporter/kafkaexporter v0.55.11
+	github.com/open-telemetry/opentelemetry-collector-contrib/exporter/kafkaexporter v0.55.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/exporter/loadbalancingexporter v0.55.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/exporter/logzioexporter v0.55.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/exporter/lokiexporter v0.55.0
