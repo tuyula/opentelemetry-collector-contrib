@@ -52,6 +52,8 @@ func (e *kafkaTracesProducer) tracesPusher(_ context.Context, td ptrace.Traces) 
 	if err != nil {
 		return consumererror.NewPermanent(err)
 	}
+	e.logger.Error("message %v", messages)
+
 	err = e.producer.SendMessages(messages)
 	if err != nil {
 		var prodErr sarama.ProducerErrors
